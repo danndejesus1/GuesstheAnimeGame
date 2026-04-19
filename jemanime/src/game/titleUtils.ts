@@ -18,10 +18,14 @@ export const filterTitleSuggestions = (titles: string[], input: string): string[
     return titles.slice(0, 50)
   }
 
-  const startsWithMatches = titles.filter((title) => title.toLowerCase().startsWith(query))
-  const includesMatches = titles.filter(
-    (title) => title.toLowerCase().includes(query) && !title.toLowerCase().startsWith(query),
-  )
+  const containsMatches = titles.filter((title) => title.toLowerCase().includes(query))
 
-  return [...startsWithMatches, ...includesMatches]
+  const nonPrefixMatches = containsMatches.filter((title) => !title.toLowerCase().startsWith(query))
+  const prefixMatches = containsMatches.filter((title) => title.toLowerCase().startsWith(query))
+
+  if (nonPrefixMatches.length > 0) {
+    return [...nonPrefixMatches, ...prefixMatches]
+  }
+
+  return prefixMatches
 }

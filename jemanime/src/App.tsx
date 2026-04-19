@@ -1,122 +1,38 @@
-import { useEffect, useMemo, useState } from 'react'
 import { MediaPanel } from './components/MediaPanel'
-import { MAX_LIVES, REVEAL_STAGES } from './game/revealStages'
-import { filterTitleSuggestions, mergeAndSortTitles, sortTitles } from './game/titleUtils'
-import { fetchAllAnimeTitleSuggestions, fetchAnimeThemesOpeningRounds, type Round } from './lib/animethemes'
+import { getFeedbackViewModel } from './game/gameFeedback'
+import { useAnimeSongGame } from './game/useAnimeSongGame'
 
 function App() {
-  const [currentRound, setCurrentRound] = useState<Round | null>(null)
-  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([])
-  const [roundNumber, setRoundNumber] = useState(1)
-  const [guessInput, setGuessInput] = useState('')
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [revealed, setRevealed] = useState(false)
-  const [score, setScore] = useState(0)
-  const [lives, setLives] = useState(MAX_LIVES)
-  const [loadingApiRounds, setLoadingApiRounds] = useState(true)
-  const [loadingNextRound, setLoadingNextRound] = useState(false)
-  const [prefetchingNextRound, setPrefetchingNextRound] = useState(false)
-  const [prefetchedRound, setPrefetchedRound] = useState<Round | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [apiMessage, setApiMessage] = useState('Loading one random opening from AnimeThemes API...')
-  const [lastResult, setLastResult] = useState<'correct' | 'wrong' | 'out' | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-
-    const loadInitialRound = async () => {
-      try {
-        const liveData = await fetchAnimeThemesOpeningRounds(1)
-        const firstRound = liveData.rounds[0]
-
-        if (cancelled) return
-
-        if (firstRound) {
-          setCurrentRound(firstRound)
-          setTitleSuggestions(sortTitles(Array.from(new Set(liveData.titleSuggestions))))
-          setPrefetchedRound(null)
-          setRoundNumber(1)
-          setGuessInput('')
-          setShowSuggestions(false)
-          setRevealed(false)
-          setScore(0)
-          setLives(MAX_LIVES)
-          setLastResult(null)
-          setLoadError(null)
-          
-        } else {
-          setLoadError('AnimeThemes returned no playable rounds. Try again.')
-       
-        }
-      } catch {
-        if (!cancelled) {
-          setLoadError('Unable to load AnimeThemes API. Check your network and try again.')
-        
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingApiRounds(false)
-        }
-      }
-    }
-
-    loadInitialRound()
-
-    fetchAllAnimeTitleSuggestions()
-      .then((allTitles) => {
-        if (cancelled || allTitles.length === 0) return
-        setTitleSuggestions(allTitles)
-      })
-      .catch(() => {
-        // keep partial in-memory suggestions if full list fetch fails
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const normalizedGuess = guessInput.trim().toLowerCase()
-  const isCorrect = currentRound ? normalizedGuess === currentRound.answer.trim().toLowerCase() : false
-  const stageIndex = MAX_LIVES - lives
-  const stage = REVEAL_STAGES[Math.min(Math.max(stageIndex, 0), REVEAL_STAGES.length - 1)]
-  const revealVideoFully = revealed && lastResult === 'correct'
-
-  const progress = useMemo(() => 100, [])
-
-  const filteredSuggestions = useMemo(() => {
-    return filterTitleSuggestions(titleSuggestions, guessInput)
-  }, [guessInput, titleSuggestions])
-
-  useEffect(() => {
-    if (!currentRound || loadingNextRound || prefetchingNextRound || prefetchedRound) return
-
-    let cancelled = false
-    setPrefetchingNextRound(true)
-
-    fetchAnimeThemesOpeningRounds(1)
-      .then((liveData) => {
-        if (cancelled) return
-
-        const next = liveData.rounds[0]
-        if (!next) return
-
-        setPrefetchedRound(next)
-        setTitleSuggestions((prev) => mergeAndSortTitles(prev, liveData.titleSuggestions))
-      })
-      .catch(() => {
-        // silent; next round button path still fetches directly
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setPrefetchingNextRound(false)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [currentRound, loadingNextRound, prefetchingNextRound, prefetchedRound])
+  const {
+    currentRound,
+    roundNumber,
+    guessInput,
+    showSuggestions,
+    revealed,
+    score,
+    lives,
+    loadingApiRounds,
+    loadingNextRound,
+    prefetchedRound,
+    loadError,
+    apiMessage,
+    lastResult,
+    stage,
+    revealVideoFully,
+    progress,
+    filteredSuggestions,
+    canSubmitGuess,
+    canRevealMore,
+    canNextRound,
+    nextRoundLabel,
+    handleGuessInputChange,
+    handleGuessInputFocus,
+    handleGuessInputBlur,
+    handleSuggestionSelect,
+    submitGuess,
+    revealMore,
+    nextRound,
+  } = useAnimeSongGame()
 
   if (loadingApiRounds) {
     return (
@@ -146,107 +62,7 @@ function App() {
     )
   }
 
-  const submitGuess = () => {
-    if (!guessInput.trim() || revealed) return
-
-    if (isCorrect) {
-      setScore((prev) => prev + lives)
-      setRevealed(true)
-      setLastResult('correct')
-      return
-    }
-
-    const nextLives = Math.max(0, lives - 1)
-    setLives(nextLives)
-    setGuessInput('')
-
-    if (nextLives === 0) {
-      setRevealed(true)
-      setLastResult('out')
-      return
-    }
-
-    setLastResult('wrong')
-  }
-
-  const revealMore = () => {
-    if (revealed || lives <= 0) return
-
-    const nextLives = Math.max(0, lives - 1)
-    setLives(nextLives)
-
-    if (nextLives === 0) {
-      setRevealed(true)
-      setLastResult('out')
-    }
-  }
-
-  const nextRound = () => {
-    if (!revealed) return
-
-    if (prefetchedRound) {
-      setCurrentRound(prefetchedRound)
-      setPrefetchedRound(null)
-      setRoundNumber((prev) => prev + 1)
-      setGuessInput('')
-      setShowSuggestions(false)
-      setRevealed(false)
-      setLastResult(null)
-      setLives(MAX_LIVES)
-      setApiMessage('Loaded prefetched opening from AnimeThemes API')
-      return
-    }
-
-    setLoadingNextRound(true)
-    setLoadError(null)
-
-    fetchAnimeThemesOpeningRounds(1)
-      .then((liveData) => {
-        const next = liveData.rounds[0]
-        if (!next) {
-          setLoadError('AnimeThemes returned no playable rounds. Try again.')
-          return
-        }
-
-        setCurrentRound(next)
-        setTitleSuggestions((prev) => mergeAndSortTitles(prev, liveData.titleSuggestions))
-        setRoundNumber((prev) => prev + 1)
-        setGuessInput('')
-        setShowSuggestions(false)
-        setRevealed(false)
-        setLastResult(null)
-        setLives(MAX_LIVES)
-        setApiMessage('Loaded one random opening from AnimeThemes API')
-      })
-      .catch(() => {
-        setLoadError('Unable to load next round from AnimeThemes API. Try again.')
-      })
-      .finally(() => {
-        setLoadingNextRound(false)
-      })
-  }
-
-  let feedbackMessage = <p className="text-zinc-400">Wrong guess costs 1 life and unlocks the next reveal stage.</p>
-  if (lastResult === 'correct') {
-    feedbackMessage = <p className="font-medium text-emerald-300">Correct! +{lives} points.</p>
-  }
-  if (lastResult === 'wrong') {
-    feedbackMessage = <p className="font-medium text-amber-300">Wrong guess. Life lost, reveal stage increased.</p>
-  }
-  if (lastResult === 'out') {
-    feedbackMessage = (
-      <p className="font-medium text-rose-300">
-        Out of lives. Round over. Answer: <span className="text-rose-200">{currentRound.answer}</span>
-      </p>
-    )
-  }
-
-  let nextRoundLabel = 'Next Round'
-  if (loadingNextRound) {
-    nextRoundLabel = 'Loading...'
-  } else if (prefetchingNextRound) {
-    nextRoundLabel = 'Next Round (preparing...)'
-  }
+  const feedback = getFeedbackViewModel(lastResult, lives, currentRound.answer)
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -289,9 +105,9 @@ function App() {
             id="anime-guess"
             type="text"
             value={guessInput}
-            onChange={(event) => setGuessInput(event.target.value)}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 120)}
+            onChange={(event) => handleGuessInputChange(event.target.value)}
+            onFocus={handleGuessInputFocus}
+            onBlur={handleGuessInputBlur}
             disabled={revealed || loadingNextRound}
             placeholder="Type anime title..."
             autoComplete="off"
@@ -305,7 +121,7 @@ function App() {
                   <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => setGuessInput(title)}
+                    onClick={() => handleSuggestionSelect(title)}
                     className="w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800"
                   >
                     {title}
@@ -320,7 +136,7 @@ function App() {
           <button
             type="button"
             onClick={submitGuess}
-            disabled={!guessInput.trim() || revealed || loadingNextRound}
+            disabled={!canSubmitGuess}
             className="rounded-xl bg-violet-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Submit Guess
@@ -329,7 +145,7 @@ function App() {
           <button
             type="button"
             onClick={revealMore}
-            disabled={revealed || lives <= 0 || loadingNextRound}
+            disabled={!canRevealMore}
             className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-5 py-2.5 text-sm font-semibold text-amber-200 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Skip (-1 life)
@@ -338,7 +154,7 @@ function App() {
           <button
             type="button"
             onClick={nextRound}
-            disabled={!revealed || loadingNextRound}
+            disabled={!canNextRound}
             className="rounded-xl border border-zinc-600 bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-zinc-100 transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {nextRoundLabel}
@@ -347,7 +163,9 @@ function App() {
 
         {prefetchedRound ? <p className="mt-3 text-xs text-emerald-300">Next round is prefetched.</p> : null}
 
-        <div className="mt-5 min-h-14 rounded-xl border border-zinc-800 bg-black/20 p-4 text-sm">{feedbackMessage}</div>
+        <div className="mt-5 min-h-14 rounded-xl border border-zinc-800 bg-black/20 p-4 text-sm">
+          <p className={feedback.className}>{feedback.text}</p>
+        </div>
       </section>
     </main>
   )

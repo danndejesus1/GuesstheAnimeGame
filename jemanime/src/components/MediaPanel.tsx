@@ -15,13 +15,31 @@ export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPa
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const hasVideo = Boolean(currentRound.videoUrl)
+  const previewLimitSeconds = revealFully ? Number.POSITIVE_INFINITY : stage.maxPreviewSeconds
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.volume = revealFully ? 1 : stage.volume
-      videoRef.current.playbackRate = 1
+    const video = videoRef.current
+    if (!video) return
+
+    const enforcePreviewLimit = () => {
+      if (video.currentTime <= previewLimitSeconds) return
+      video.currentTime = previewLimitSeconds
+      video.pause()
     }
-  }, [revealFully, stage])
+
+    video.volume = 1
+    video.playbackRate = 1
+
+    video.addEventListener('timeupdate', enforcePreviewLimit)
+    video.addEventListener('seeking', enforcePreviewLimit)
+    video.addEventListener('loadedmetadata', enforcePreviewLimit)
+
+    return () => {
+      video.removeEventListener('timeupdate', enforcePreviewLimit)
+      video.removeEventListener('seeking', enforcePreviewLimit)
+      video.removeEventListener('loadedmetadata', enforcePreviewLimit)
+    }
+  }, [previewLimitSeconds, currentRound.videoUrl])
 
   return (
     <div className="mb-4">
@@ -54,6 +72,10 @@ export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPa
             />
           )}
         </div>
+      ) : null}
+
+      {hasVideo && !revealFully ? (
+        <p className="mt-2 text-xs text-zinc-400">Preview limit: first {stage.maxPreviewSeconds}s</p>
       ) : null}
 
       {hasVideo ? null : <p className="text-sm text-zinc-400">No playable video found for this round.</p>}
