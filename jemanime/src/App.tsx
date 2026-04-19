@@ -253,7 +253,7 @@ function App() {
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-violet-300/20 bg-black/30 p-4 backdrop-blur">
         <div>
           <p className="text-xs uppercase tracking-[0.25em] text-violet-300/80">JemAnime</p>
-          <h1 className="text-2xl font-bold text-white sm:text-3xl">Guess the Anime Opening</h1>
+          <h1 className="text-2xl font-bold text-white sm:text-3xl">Guess the Anime Song</h1>
           <p className="mt-1 text-xs text-zinc-300">{apiMessage}</p>
         </div>
 
@@ -332,7 +332,7 @@ function App() {
             disabled={revealed || lives <= 0 || loadingNextRound}
             className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-5 py-2.5 text-sm font-semibold text-amber-200 transition hover:border-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Reveal More (-1 life)
+            Skip (-1 life)
           </button>
 
           <button
