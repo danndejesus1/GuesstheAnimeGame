@@ -61,6 +61,9 @@ type CacheEnvelope<T> = {
   data: T
 }
 
+const roundCandidatePool: RoundCandidate[] = []
+const titleSuggestionPool = new Set<string>()
+
 const shuffle = <T,>(items: T[]): T[] => {
   const copy = [...items]
   for (let i = copy.length - 1; i > 0; i -= 1) {
@@ -265,6 +268,32 @@ function buildRoundCandidates(anime: ApiAnime[]): RoundCandidate[] {
   return anime.flatMap((item) => buildCandidatesForAnime(item))
 }
 
+function addToPools(candidates: RoundCandidate[], suggestions: string[]): void {
+  for (const candidate of candidates) {
+    roundCandidatePool.push(candidate)
+  }
+
+  for (const suggestion of suggestions) {
+    titleSuggestionPool.add(suggestion)
+  }
+}
+
+function takeFromRoundPool(count: number): RoundCandidate[] {
+  if (roundCandidatePool.length === 0) return []
+
+  const available = sample(shuffle(roundCandidatePool), Math.min(count, roundCandidatePool.length))
+  const selectedKeys = new Set(available.map((item) => `${item.animeName}|${item.themeType}|${item.sequence}|${item.videoUrl ?? ''}`))
+
+  for (let index = roundCandidatePool.length - 1; index >= 0; index -= 1) {
+    const key = `${roundCandidatePool[index]?.animeName}|${roundCandidatePool[index]?.themeType}|${roundCandidatePool[index]?.sequence}|${roundCandidatePool[index]?.videoUrl ?? ''}`
+    if (selectedKeys.has(key)) {
+      roundCandidatePool.splice(index, 1)
+    }
+  }
+
+  return available
+}
+
 async function fetchCandidatesWithSuggestions(): Promise<{ candidates: RoundCandidate[]; suggestions: string[] }> {
   const attempts = 12
   const usedPages = new Set<number>()
@@ -290,9 +319,14 @@ async function fetchCandidatesWithSuggestions(): Promise<{ candidates: RoundCand
 }
 
 export async function fetchAnimeThemesOpeningRounds(roundCount = 8): Promise<OpeningGameData> {
-  const { candidates, suggestions } = await fetchCandidatesWithSuggestions()
+  let fetchCycles = 0
+  while (roundCandidatePool.length < roundCount && fetchCycles < 3) {
+    const { candidates, suggestions } = await fetchCandidatesWithSuggestions()
+    addToPools(candidates, suggestions)
+    fetchCycles += 1
+  }
 
-  const selected = sample(shuffle(candidates), roundCount)
+  const selected = takeFromRoundPool(roundCount)
 
   const rounds = selected.map((item, index) => {
     return {
@@ -307,7 +341,7 @@ export async function fetchAnimeThemesOpeningRounds(roundCount = 8): Promise<Ope
 
   return {
     rounds,
-    titleSuggestions: suggestions,
+    titleSuggestions: Array.from(titleSuggestionPool).sort((a, b) => a.localeCompare(b)),
   }
 }
 

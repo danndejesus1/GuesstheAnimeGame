@@ -19,7 +19,7 @@ export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPa
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.volume = revealFully ? 1 : stage.volume
-      videoRef.current.playbackRate = revealFully ? 1 : stage.playbackRate
+      videoRef.current.playbackRate = 1
     }
   }, [revealFully, stage])
 
@@ -30,17 +30,30 @@ export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPa
       </div>
 
       {hasVideo ? (
-        <video
-          ref={videoRef}
-          key={currentRound.videoUrl}
-          controls
-          preload="auto"
-          className="w-full rounded-lg border border-zinc-700 bg-black"
-          style={{ filter: revealFully ? 'none' : stage.videoFilter }}
-          src={currentRound.videoUrl}
-        >
-          <track kind="captions" src={EMPTY_VTT} srcLang="en" label="captions" default />
-        </video>
+        <div className="relative">
+          <video
+            ref={videoRef}
+            key={currentRound.videoUrl}
+            controls
+            preload="auto"
+            className="w-full rounded-lg border border-zinc-700 bg-black"
+            src={currentRound.videoUrl}
+          >
+            <track kind="captions" src={EMPTY_VTT} srcLang="en" label="captions" default />
+          </video>
+
+          {revealFully ? null : (
+            <div
+              className="pointer-events-none absolute inset-0 rounded-lg"
+              style={{
+                backdropFilter: stage.videoFilter,
+                WebkitBackdropFilter: stage.videoFilter,
+                maskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 78px), transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black calc(100% - 78px), transparent 100%)',
+              }}
+            />
+          )}
+        </div>
       ) : null}
 
       {hasVideo ? null : <p className="text-sm text-zinc-400">No playable video found for this round.</p>}

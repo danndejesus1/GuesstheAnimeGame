@@ -80,6 +80,7 @@ function App() {
   const isCorrect = currentRound ? normalizedGuess === currentRound.answer.trim().toLowerCase() : false
   const stageIndex = MAX_LIVES - lives
   const stage = REVEAL_STAGES[Math.min(Math.max(stageIndex, 0), REVEAL_STAGES.length - 1)]
+  const revealVideoFully = revealed && lastResult === 'correct'
 
   const progress = useMemo(() => 100, [])
 
@@ -277,7 +278,7 @@ function App() {
         </div>
 
         <div className="mb-6 rounded-xl border border-zinc-700/70 bg-zinc-900/70 p-4">
-          <MediaPanel currentRound={currentRound} stage={stage} />
+          <MediaPanel currentRound={currentRound} stage={stage} revealFully={revealVideoFully} />
         </div>
 
         <div className="relative mb-2">
