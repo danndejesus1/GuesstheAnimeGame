@@ -164,8 +164,25 @@ export function useAnimeSongGame(): AnimeSongGameModel {
     preloadLink.href = prefetchVideoUrl
     document.head.appendChild(preloadLink)
 
+    // Preload links are sometimes ignored for video by browsers, so warm it with a hidden element too.
+    const prebufferVideo = document.createElement('video')
+    prebufferVideo.preload = 'auto'
+    prebufferVideo.muted = true
+    prebufferVideo.playsInline = true
+    prebufferVideo.src = prefetchVideoUrl
+    prebufferVideo.style.position = 'fixed'
+    prebufferVideo.style.width = '1px'
+    prebufferVideo.style.height = '1px'
+    prebufferVideo.style.opacity = '0'
+    prebufferVideo.style.pointerEvents = 'none'
+    prebufferVideo.style.left = '-9999px'
+    prebufferVideo.setAttribute('aria-hidden', 'true')
+    document.body.appendChild(prebufferVideo)
+    prebufferVideo.load()
+
     return () => {
       preloadLink.remove()
+      prebufferVideo.remove()
     }
   }, [prefetchedRound?.videoUrl])
 
