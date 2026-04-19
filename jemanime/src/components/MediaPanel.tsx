@@ -22,21 +22,39 @@ export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPa
     if (!video) return
 
     const enforcePreviewLimit = () => {
+      if (!Number.isFinite(previewLimitSeconds)) return
       if (video.currentTime <= previewLimitSeconds) return
       video.currentTime = previewLimitSeconds
       video.pause()
     }
 
+    const enforceOnPlay = () => {
+      enforcePreviewLimit()
+      if (!Number.isFinite(previewLimitSeconds)) return
+      if (video.currentTime >= previewLimitSeconds) {
+        video.pause()
+      }
+    }
+
     video.volume = 1
     video.playbackRate = 1
 
+    // Clamp immediately in case the same source is reused or user sought before listeners attached.
+    enforcePreviewLimit()
+
     video.addEventListener('timeupdate', enforcePreviewLimit)
     video.addEventListener('seeking', enforcePreviewLimit)
+    video.addEventListener('seeked', enforcePreviewLimit)
+    video.addEventListener('play', enforceOnPlay)
+    video.addEventListener('loadeddata', enforcePreviewLimit)
     video.addEventListener('loadedmetadata', enforcePreviewLimit)
 
     return () => {
       video.removeEventListener('timeupdate', enforcePreviewLimit)
       video.removeEventListener('seeking', enforcePreviewLimit)
+      video.removeEventListener('seeked', enforcePreviewLimit)
+      video.removeEventListener('play', enforceOnPlay)
+      video.removeEventListener('loadeddata', enforcePreviewLimit)
       video.removeEventListener('loadedmetadata', enforcePreviewLimit)
     }
   }, [previewLimitSeconds, currentRound.videoUrl])
