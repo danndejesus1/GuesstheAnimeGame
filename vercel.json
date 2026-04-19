@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "cd jemanime && npm ci",
+  "installCommand": "cd jemanime && npm install",
   "buildCommand": "cd jemanime && npm run build",
   "outputDirectory": "jemanime/dist",
   "rewrites": [
