@@ -8,19 +8,20 @@ const EMPTY_VTT = 'data:text/vtt;charset=utf-8,WEBVTT%0A%0A'
 type MediaPanelProps = Readonly<{
   currentRound: Round
   stage: RevealStage
+  revealFully?: boolean
 }>
 
-export function MediaPanel({ currentRound, stage }: MediaPanelProps) {
+export function MediaPanel({ currentRound, stage, revealFully = false }: MediaPanelProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const hasVideo = Boolean(currentRound.videoUrl)
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.volume = stage.volume
-      videoRef.current.playbackRate = stage.playbackRate
+      videoRef.current.volume = revealFully ? 1 : stage.volume
+      videoRef.current.playbackRate = revealFully ? 1 : stage.playbackRate
     }
-  }, [stage])
+  }, [revealFully, stage])
 
   return (
     <div className="mb-4">
@@ -35,7 +36,7 @@ export function MediaPanel({ currentRound, stage }: MediaPanelProps) {
           controls
           preload="auto"
           className="w-full rounded-lg border border-zinc-700 bg-black"
-          style={{ filter: stage.videoFilter }}
+          style={{ filter: revealFully ? 'none' : stage.videoFilter }}
           src={currentRound.videoUrl}
         >
           <track kind="captions" src={EMPTY_VTT} srcLang="en" label="captions" default />
